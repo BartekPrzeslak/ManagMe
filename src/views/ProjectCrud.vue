@@ -63,6 +63,43 @@
         <button type="submit">{{ isStoryEditing ? "Zapisz" : "Dodaj" }}</button>
         <button v-if="isStoryEditing" @click="cancelStoryEdit" type="button">Anuluj</button>
       </form>
+
+      <div v-if="stories.length > 0 " style="margin-top: 24px;">
+        <label>
+          Wybierz historyjke:
+          <select v-model="selectedStoryId">
+            <option :value="null"> - wybierz - </option>
+            <option v-for="story in stories" :value="story.id" :key="story.id">
+              {{ story.name }}
+            </option>
+          </select>
+        </label>
+      </div>
+      <div v-if="selectedStoryId">
+        <h4>dodaj zadnaie historyjki</h4>
+        <form @submit.prevent="saveTask">
+          <input v-model="taskForm.name" placeholder="Nazwa zadania" required />
+          <input v-model="taskForm.description" placeholder="opis zadania" required />
+          <select v-model="taskForm.priority">
+            <option value="niski">Niski</option>
+            <option value="sredni">Średni</option>
+            <option value="wysoki">Wysoki</option>
+          </select>
+          <input v-model="taskForm.estimatedHours" type="number" min="1" placeholder="Szacowany czas godziny" required />
+          <button type="submit">Dodaj zadanie</button>
+        </form>
+      </div>
+      <div v-if="selectedStoryId">
+        <h4>Zadamoa wubramek historyjki</h4>
+        <ul>
+          <li v-for="task in tasks" :key="task.id">
+            <b>{{ task.name }}</b> ({{ task.priority }}) – {{ task.description }} ({{ task.estimatedHours }}h)
+            <span> | Stan: {{ task.state }}</span>
+            <button @click="removeTask(task.id)">Usun</button>
+          </li>
+        </ul>
+
+      </div>
   </div>
 
 
@@ -76,9 +113,11 @@ import { ProjectApi } from "../api/ProjectApi";
 import { ActiveProjectApi } from "../api/ActiveProjectApi";
 import { StoryApi } from "../api/StoryApi";
 import { UserApi } from "../api/UserApi";
+import { TaskApi } from "../api/TaskApi";
 
 import type { Story, StoryState, StoryPriority } from "../models/Story";
 import type { Project } from "../models/Project";
+import type { Task, TaskState, TaskPriority } from "../models/Task";
 
 const projects = ref<Project[]>(ProjectApi.getAll());
 
@@ -106,6 +145,47 @@ const filteredStories = computed(() =>
     ? stories.value.filter(story => story.state === filterState.value)
     : stories.value
 );
+const tasks = ref<Task[]>([]);
+const selectedStoryId = ref<string | null>(null);
+const taskForm = ref<{ name: string; description: string; priority: TaskPriority; estimatedHours: number }>({
+  name: "",
+  description: "",
+  priority: "sredni",
+  estimatedHours: 1,
+});
+
+function saveTask() {
+  if (!selectedStoryId.value) return;
+  TaskApi.add({
+    id: Date.now().toString(),
+    name: taskForm.value.name,
+    description: taskForm.value.description,
+    priority: taskForm.value.priority,
+    storyId: selectedStoryId.value,
+    estimatedHours: taskForm.value.estimatedHours,
+    state: "todo",
+    createdAt: new Date().toISOString()
+  });
+  // Odśwież listę zadań
+  tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+  // Wyczyść formularz
+  taskForm.value = { name: "", description: "", priority: "sredni", estimatedHours: 1 };
+}
+
+function removeTask(id: string) {
+  TaskApi.remove(id);
+  tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+}
+
+
+// zaladuj zadania gdy zmienia sie wybrana historyjka - gpt
+watch(selectedStoryId, () => {
+  if (selectedStoryId.value) {
+    tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+  } else {
+    tasks.value = [];
+  }
+});
 
 // zaladuj liste historyjek po zmianie projektu - gpt
 watch(activeProjectId, () => {

@@ -95,10 +95,26 @@
           <li v-for="task in tasks" :key="task.id">
             <b>{{ task.name }}</b> ({{ task.priority }}) – {{ task.description }} ({{ task.estimatedHours }}h)
             <span> | Stan: {{ task.state }}</span>
+              <span v-if="task.assigneeId">
+                | Odpowiedzialny: {{
+                  assignees.value.find(u => u.id === task.assigneeId)?.firstName
+                }} {{
+                  assignees.value.find(u => u.id === task.assigneeId)?.lastName
+                }}
+              </span>
             <button @click="removeTask(task.id)">Usun</button>
+            <button @click="editTask(task)">edituj</button>
+            <button v-if="task.state === 'todo' && task.assigneeId" @click="startTask(task)">Rozpocznij</button>
+            <button v-if="task.state === 'doing'" @click="finishTask(task)">Zakoncz</button>
           </li>
         </ul>
-
+        <select v-model="taskForm.assigneeId">
+          <option value="">Przypisz osobę</option>
+            <option v-for="user in assignees" :key="user.id" :value="user.id">
+              {{ user.firstName }} {{ user.lastName }} ({{ user.role }})
+        </option>
+        </select>
+        
       </div>
   </div>
 
@@ -147,15 +163,32 @@ const filteredStories = computed(() =>
 );
 const tasks = ref<Task[]>([]);
 const selectedStoryId = ref<string | null>(null);
-const taskForm = ref<{ name: string; description: string; priority: TaskPriority; estimatedHours: number }>({
+const taskForm = ref<{
+  id?: string;
+  name: string;
+  description: string;
+  priority: TaskPriority;
+  estimatedHours: number;
+  assigneeId?: string;
+  state: TaskState;
+}>({
   name: "",
   description: "",
   priority: "sredni",
   estimatedHours: 1,
+  assigneeId: "",
+  state: "todo",
 });
+const isTaskEditing = ref(false);
 
 function saveTask() {
   if (!selectedStoryId.value) return;
+  if (isTaskEditing.value && taskForm.value.id) {
+    TaskApi.update({
+      ...taskForm.value,
+      storyId: selectedStoryId.value,
+    });
+  } else {  
   TaskApi.add({
     id: Date.now().toString(),
     name: taskForm.value.name,
@@ -169,12 +202,34 @@ function saveTask() {
   // Odśwież listę zadań
   tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
   // Wyczyść formularz
-  taskForm.value = { name: "", description: "", priority: "sredni", estimatedHours: 1 };
+  resetTaskForm();
 }
 
 function removeTask(id: string) {
   TaskApi.remove(id);
   tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+}
+
+function startTask(task: Task) {
+  TaskApi.update({
+    ...task,
+    state: "doing",
+    startedAt: new Date().toISOString()
+  });
+  tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+}
+
+function finishTask(task: Task) {
+  TaskApi.update({
+    ...task,
+    state: "done",
+    finishedAt: new Date().toISOString()
+  });
+  tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+}
+function editTask(task: Task) {
+  taskForm.value = { ...task };
+  isTaskEditing.value = true;
 }
 
 
@@ -191,6 +246,11 @@ watch(selectedStoryId, () => {
 watch(activeProjectId, () => {
   stories.value = StoryApi.getAll().filter(s => s.projectId === activeProjectId.value);
 });
+
+const assignees = computed(() =>
+  UserApi.getAllUsers().filter(user => user.role !== "admin")
+);
+
 
 
 function changeActiveProject() {

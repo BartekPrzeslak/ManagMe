@@ -85,7 +85,7 @@
             <option value="sredni">Średni</option>
             <option value="wysoki">Wysoki</option>
           </select>
-          <input v-model="taskForm.estimatedHours" type="number" min="1" placeholder="Szacowany czas godziny" required />
+          <!-- <input v-model="taskForm.estimatedHours" type="number" min="1" placeholder="Szacowany czas godziny" required /> -->
           <button type="submit">Dodaj zadanie</button>
         </form>
       </div>
@@ -114,7 +114,33 @@
               {{ user.firstName }} {{ user.lastName }} ({{ user.role }})
         </option>
         </select>
-        
+      </div>
+      <!-- TABLICA KANBAN -->
+      <div style="display: flex; gap: 16px; margin-top: 32px;">
+        <div style="flex:1">
+          <h4>Do zrobienia</h4>
+          <ul>
+            <li v-for="task in tasks.filter(t => t.state === 'todo')" :key="task.id">
+              <b>{{ task.name }}</b> <button @click="editTask(task)">Edytuj</button>
+            </li>
+          </ul>
+        </div>
+        <div style="flex:1">
+          <h4>w trkacie</h4>
+          <ul>
+            <li v-for="task in tasks.filter(t => t.state === 'doing')" :key="task.id">
+              <b>{{ task.name }}</b> <button @click="editTask(task)">Edytuj</button>
+            </li>
+          </ul>
+        </div>
+        <div style="flex:1">
+          <h4>zrobione</h4>
+          <ul>
+            <li v-for="task in tasks.filter(t => t.state === 'done')" :key="task.id">
+              <b>{{ task.name }}</b> <button @click="editTask(task)">Edytuj</button>
+            </li>
+          </ul>
+        </div>
       </div>
   </div>
 
@@ -184,11 +210,28 @@ const isTaskEditing = ref(false);
 function saveTask() {
   if (!selectedStoryId.value) return;
   if (isTaskEditing.value && taskForm.value.id) {
+
+    if(
+      taskForm.value.state === "todo" &&
+      taskForm.value.assigneeId &&
+      !taskForm.value.startedAt
+    ){
+      taskForm.value.state = "doing";
+      (taskForm.value as any).startedAt = new Date().toISOString();
+    }
     TaskApi.update({
       ...taskForm.value,
       storyId: selectedStoryId.value,
     });
+    tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
+    resetTaskForm();
   } else {  
+    let newState: "todo" | "doing" = "todo";
+    let startedAt: string | undefined = undefined;
+  if (taskForm.value.assigneeId) {
+    newState = "doing";
+    startedAt = new Date().toISOString();
+  }
   TaskApi.add({
     id: Date.now().toString(),
     name: taskForm.value.name,
@@ -196,14 +239,28 @@ function saveTask() {
     priority: taskForm.value.priority,
     storyId: selectedStoryId.value,
     estimatedHours: taskForm.value.estimatedHours,
-    state: "todo",
-    createdAt: new Date().toISOString()
+    state: newState,
+    createdAt: new Date().toISOString(),
+    startedAt: startedAt
   });
   // Odśwież listę zadań
   tasks.value = TaskApi.getAll().filter(t => t.storyId === selectedStoryId.value);
   // Wyczyść formularz
   resetTaskForm();
+  }
+} // xd 
+function resetTaskForm() {
+  taskForm.value = {
+    name: "",
+    description: "",
+    priority: "sredni",
+    estimatedHours: 1,
+    assigneeId: "",
+    state: "todo"
+  };
+  isTaskEditing.value = false;
 }
+
 
 function removeTask(id: string) {
   TaskApi.remove(id);

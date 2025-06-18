@@ -21,6 +21,5 @@ const token = localStorage.getItem('token');
     
     <LoginView v-if="!token" />
     <ProjectCrud v-else />
-  <ProjectCrud />
   </div>
 </template>

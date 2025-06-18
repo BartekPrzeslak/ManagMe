@@ -311,7 +311,7 @@ watch(activeProjectId, () => {
 });
 
 const assignees = computed(() =>
-  UserApi.getAllUsers().filter(user => user.role !== "admin")
+  user ? [user] : []
 );
 
 

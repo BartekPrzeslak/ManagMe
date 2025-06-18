@@ -1,6 +1,9 @@
 <template>
   <div>
     <h1>ManagMe</h1>
+    <div v-if="user" style="margin-bottom: 16px;">
+      Zalogowany: <b>{{ user.firstName }} {{ user.lastName }} ({{ user.role }})</b>
+    </div>    
     <div style="margin-bottom: 16px;">
       <label>
         Wybierz aktywny projekt
@@ -87,6 +90,7 @@
           </select>
           <!-- <input v-model="taskForm.estimatedHours" type="number" min="1" placeholder="Szacowany czas godziny" required /> -->
           <button type="submit">Dodaj zadanie</button>
+          <button v-if="isTaskEditing" @click="resetTaskForm" type="button">Anuluj</button>
         </form>
       </div>
       <div v-if="selectedStoryId">
@@ -160,6 +164,8 @@ import { TaskApi } from "../api/TaskApi";
 import type { Story, StoryState, StoryPriority } from "../models/Story";
 import type { Project } from "../models/Project";
 import type { Task, TaskState, TaskPriority } from "../models/Task";
+
+const user = JSON.parse(localStorage.getItem('user') || 'null');
 
 const projects = ref<Project[]>(ProjectApi.getAll());
 
@@ -318,7 +324,7 @@ function changeActiveProject() {
 
 function saveStory() {
   if(!activeProjectId.value) return;
-  const user = UserApi.getCurrentUser();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
   if(isStoryEditing.value && storyForm.value.id){
     StoryApi.update({
       id: storyForm.value.id,

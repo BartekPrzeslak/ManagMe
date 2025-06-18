@@ -1,30 +1,26 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { UserApi } from "./api/UserApi";
 import ProjectCrud from "./views/ProjectCrud.vue";
+import LoginView from "./views/LoginView.vue";
 
 // mock usera i zapisany do zmiennej
-const user = ref(UserApi.getCurrentUser());
+const user = (JSON.parse(localStorage.getItem('user') || 'null'));
 
-const users = ref(UserApi.getAllUsers());
+const token = localStorage.getItem('token');
+
+
 </script>
 
 <template>
   <div>
-    <div style="margin-bottom: 16px;">
-      Zalogowany uzytkownika: {{ user.firstName }} {{ user.lastName }}
+    <div v-if="user" style="margin-bottom: 16px;">
+      Zalogowany uzytkownika: {{ user.firstName }} {{ user.lastName }} {{ user.role }}
     </div>
-
-    <div>
-      <h3>Mock user</h3>
-      <ul>
-        <li v-for="user in users" :key="user.id">
-          {{ user.firstName }} {{ user.lastName }} {{ user.role }}
-        </li>
-      </ul>
+    <div v-else style="margin-bottom: 16px;">
+      nie jestes alogowany zaloguj sie by kontuwoac
     </div>
-
-
-  </div>
+    
+    <LoginView v-if="!token" />
+    <ProjectCrud v-else />
   <ProjectCrud />
+  </div>
 </template>

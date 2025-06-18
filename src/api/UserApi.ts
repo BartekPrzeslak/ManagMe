@@ -22,11 +22,6 @@ const MOCK_USERS: User[] = [
 ];
 
 export class UserApi {
-  // wwraca aktualnie zalogowanego usera zawsze admin, id=1
-  static getCurrentUser(): User {
-    return MOCK_USERS[0];
-  }
-
   // wraca listę wszystkich userow
   static getAllUsers(): User[] {
     return MOCK_USERS;
